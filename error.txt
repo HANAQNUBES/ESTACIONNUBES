@@ -8,3 +8,6 @@ VPS nubes
 contabo
 =======================
 -- ssh root@84.46.249.238
+
+
+git remote add origin https://github.com/HANAQNUBES/ESTACIONNUBES.git
