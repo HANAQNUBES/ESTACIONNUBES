@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  hanaq-dashboard:
+    build: .
+    container_name: hanaq_dashboard
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app
+    restart: unless-stopped

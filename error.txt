@@ -1,0 +1,18 @@
+=======================
+VPS nubes
+=======================
+-84.46.249.238 (ip)
+-HANAQ9626DANIsebitasNASSON
+
+=======================
+contabo
+=======================
+-- ssh root@84.46.249.238
+
+
+git remote add origin https://github.com/HANAQNUBES/ESTACIONNUBES.git
+
+________________________
+dia 08/02/2026
+
+lokesea
