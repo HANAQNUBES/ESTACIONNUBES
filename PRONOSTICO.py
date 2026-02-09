@@ -10,13 +10,13 @@ app = Flask(__name__)
 
 # Almacenamiento de datos en tiempo real desde Raspberry Pi
 sensor_data = {
-    "temperatura": 69,
-    "humedad": 10,
-    "presion": 96,
-    "viento_velocidad": 1,
-    "viento_direccion": 2,
-    "precipitacion": 3,
-    "luz_uv": 4,
+    "temperatura": None,
+    "humedad": None,
+    "presion": None,
+    "viento_velocidad": None,
+    "viento_direccion": None,
+    "precipitacion": None,
+    "luz_uv": None,
     "calidad_aire": None,
     "ultima_actualizacion": None,
     "historial": []  # Últimas 24 horas de datos
@@ -177,9 +177,20 @@ def procesar_precipitacion_eta():
             var = ds['unknown']
             
             if soma_unknown is None:
-                soma_unknown = var.copy(deep=True)
-                lat = ds.latitude
-                lon = ds.longitude
+              soma_unknown = var.copy(deep=True)
+              # Corrección: buscar nombre correcto de variables
+              if 'latitude' in ds:
+                lat = ds['latitude']
+              elif 'lat' in ds:
+                lat = ds['lat']
+              else:
+                lat = None
+              if 'longitude' in ds:
+                lon = ds['longitude']
+              elif 'lon' in ds:
+                lon = ds['lon']
+              else:
+                lon = None
             else:
                 soma_unknown = soma_unknown + var
             
@@ -231,11 +242,22 @@ def generar_mapa_precipitacion(ds_soma):
     
     # Cargar datos
     ds = xr.open_dataset('acum_prec.nc', decode_timedelta=True)
-    ds = ds.assign_coords(longitude=((ds.longitude + 180) % 360) - 180)
-    
+    # Corrección: buscar nombre correcto de variables
+    if 'longitude' in ds:
+      ds = ds.assign_coords(longitude=((ds['longitude'] + 180) % 360) - 180)
+      lon = ds['longitude']
+    elif 'lon' in ds:
+      ds = ds.assign_coords(lon=((ds['lon'] + 180) % 360) - 180)
+      lon = ds['lon']
+    else:
+      lon = None
+    if 'latitude' in ds:
+      lat = ds['latitude']
+    elif 'lat' in ds:
+      lat = ds['lat']
+    else:
+      lat = None
     prec = ds['precipitacao_total'][:, :]
-    lat = ds['latitude']
-    lon = ds['longitude']
     
     # Títulos
     rodada_ini = pd.to_datetime(ds_soma.attrs['rodada_inicial'])
