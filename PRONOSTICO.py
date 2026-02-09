@@ -10,13 +10,13 @@ app = Flask(__name__)
 
 # Almacenamiento de datos en tiempo real desde Raspberry Pi
 sensor_data = {
-    "temperatura": None,
-    "humedad": None,
-    "presion": None,
-    "viento_velocidad": None,
-    "viento_direccion": None,
-    "precipitacion": None,
-    "luz_uv": None,
+    "temperatura": 69,
+    "humedad": 10,
+    "presion": 96,
+    "viento_velocidad": 1,
+    "viento_direccion": 2,
+    "precipitacion": 3,
+    "luz_uv": 4,
     "calidad_aire": None,
     "ultima_actualizacion": None,
     "historial": []  # Últimas 24 horas de datos
