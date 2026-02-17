@@ -14,14 +14,12 @@
 *.jpg
 *.jpeg
 *.dll
-acum_prec.nc
-dados_eta_8km/
-mapa_precipitacion_eta.png
-mapa_precipitacion_wrf.png
-wrf_cptec_6dias.grib2
-wrf_cptec_6dias.grib2.*
-imagenes_cielo/
+
 __pycache__/
 .env
 .venv
+
+commands.txt
+temp
+PRONOSTICO.py
 >>>>>>> 722e0a753218e2ed740779204ae3bad4928a7367

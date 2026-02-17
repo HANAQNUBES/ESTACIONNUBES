@@ -59,7 +59,7 @@ class ControlModelos:
             return jsonify({"error": f"Modelo '{nombre_modelo}' no encontrado"}), 404
         
         # Verificar si ya se está procesando
-        with self.modelos[nombre_modelo]['lock']:
+        with self.modelos[nombre_modelo]['lock']:   
             if self.modelos[nombre_modelo]["procesando"]:
                 return jsonify({"error": f"Modelo '{nombre_modelo}' ya se está actualizando"}), 409
             

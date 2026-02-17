@@ -271,34 +271,50 @@ class MAPEADOR:
 
         def _Descargar_eta(hours=5)->datetime:
             """Descarga los datos del modelo ETA del CPTEC/INPE en formato  GRIB2 """
+            log_file=self.salida_eta+'/log_descarga.txt'
+
             os.makedirs(self.salida_eta, exist_ok=True)#comprueba carpetas
             delay = timedelta(hours=4)# Detecta corrida más reciente (00 o 12 UTC)
             now = datetime.now(timezone.utc) - delay
             data_base = now.replace(hour=int("00"), minute=0, second=0, microsecond=0)#redondeamos hacia atras
-            
-            print(f"📅 Hora Redondeada: {data_base.strftime('%Y-%m-%d %H:%M')} UTC")
-            
+            fecha=data_base.strftime('%Y-%m-%d %H:%M')
+            print(f"📅 Hora Redondeada: {fecha} UTC")
+
+            if not (os.path.exists(log_file)):
+                redescargar=True
+            else:
+                file = open(log_file,"r+")
+                fecha_log = datetime.strptime(file.read(),'%Y-%m-%d %H:%M')
+                if fecha_log<fecha:redescargar=True
+                else:redescargar=False
+                file.close()
+
             # Genera lista de archivos GRIB2
-            for h in tqdm(range(hours), desc="📥 Descargando archivos ETA"):
-                data_prev = data_base + timedelta(hours=h)
-                name = f"Eta_ams_08km_{data_base.strftime('%Y%m%d%H')}_{data_prev.strftime('%Y%m%d%H')}.grib2"
-                url = f"https://dataserver.cptec.inpe.br/dataserver_modelos/eta/ams_08km/brutos/{data_base.strftime('%Y/%m/%d/%H')}/{name}"
-                # Descarga los archivos GRIB2
-                caminho = os.path.join(self.salida_eta, name)
-                if os.path.exists(caminho):# si ya existe, no se hace nada
-                    continue
-                sucsses = False
-                for intento in range(3):#intenta re-descargar 3 veces
-                    try:
-                        urllib.request.urlretrieve(url, caminho)
-                        sucsses = True
-                        break
-                    except Exception as e:
-                        print(f"⚠️ Intento {intento+1}/3 falló para {name}: {e}")
-                        time.sleep(5)
-                if not sucsses:
-                    print(f"❌ Error al descargar {name}")
-            return data_base  
+            if redescargar:
+                for i in gb(f"{self.salida_eta}/**.grib2")+gb(f"{self.salida_wrf}/**.idx"):os.remove(i)
+                for h in tqdm(range(hours), desc="📥 Descargando archivos ETA"):
+                    data_prev = data_base + timedelta(hours=h)
+                    name = f"Eta_ams_08km_{data_base.strftime('%Y%m%d%H')}_{data_prev.strftime('%Y%m%d%H')}.grib2"
+                    url = f"https://dataserver.cptec.inpe.br/dataserver_modelos/eta/ams_08km/brutos/{data_base.strftime('%Y/%m/%d/%H')}/{name}"
+                    # Descarga los archivos GRIB2
+                    caminho = os.path.join(self.salida_eta, name)
+                    if os.path.exists(caminho):# si ya existe, no se hace nada
+                        continue
+                    sucsses = False
+                    for intento in range(3):#intenta re-descargar 3 veces
+                        try:
+                            urllib.request.urlretrieve(url, caminho)
+                            sucsses = True
+                            break
+                        except Exception as e:
+                            print(f"⚠️ Intento {intento+1}/3 falló para {name}: {e}")
+                            time.sleep(5)
+                    if not sucsses:
+                        print(f"❌ Error al descargar {name}")
+                file = open(log_file,"w+")
+                file.write(fecha)
+                file.close()
+                return data_base  
     
         def _Procesar_pp_eta()->xr.Dataset:
             """Procesa los datos ETA y calcula la precipitación acumulada."""            
