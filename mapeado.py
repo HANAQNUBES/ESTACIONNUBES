@@ -23,10 +23,49 @@ from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
 
 #%%
 class MAPEADOR:
+    """
+    Gestor de información relacionada con mapas.
+
+    Se encarga de:
+    1. Descargar la información de los modelos de predicción
+    2. Descargar los shapefiles para los mapas
+    3. Armar los mapas
+    4. Gestión de archivos de todo lo anterior
+
+    Attributes:
+
+        modelos_registrados (dict) : Relaciona el nombre(str) de cada modelo que se tiene con el método que ejecuta su actualizacion; lo que permite actualizar cualquier modelo registrado solo pasando el nombre, independientemente del proceso para actualizarlo.
+
+        folder (str) : nombre de la carpeta donde se guardará todo lo que realice el gestor.
+
+        salida_eta (str) : nombre de la sub-carpeta donde se almacena los archivos relacionados al modelo eta
+
+        salida_wrf (str) : nombre de la sub-carpeta donde se almacena los archivos relacionados al modelo wrf
+        
+        shapefiles (dic) : relaciona y ordena los archivos y maletas de descarga para paises y provincias
+
+    """
     def __init__(self,folder='temp')->None:
+
+        """
+        Inicializa el controlador de los mapas
+
+        Args:
+
+            folder (str,optional) : Nombre de la carpeta donde se almacenará todo
+
+
+        """
+
+        #folder (str): Nombre de la carpeta temporal* para todos los archivos de este gestor
         self.folder=folder
         os.makedirs(self.folder,exist_ok=True)#maleta de archivos temporales al iniciar
-
+        self.modelos_registrados = {
+            "eta": self.eta,
+            "wrf": self.wrf
+            #"gfs": self.refresh_gfs,
+            #"icon": self.refresh_icon,
+        }
         #region Valores default 
         self.salida_eta=f"{self.folder}/dados_eta_8km"
         self.salida_wrf=f"{self.folder}/datos_wrf"
@@ -35,7 +74,15 @@ class MAPEADOR:
         #endregion
 
     def Mapa_de_pp(self,ds)->str:
-        """Genera el mapa de precipitación y lo guarda como imagen."""
+        """
+        Genera un mapa de precipitación y lo guarda como png.
+
+        Args:
+            ds (xarray.dataset): Dataset netcdf que se consolida y guarda internamente
+
+        Returns:
+            path_imagen (str): Ruta al archivo PNG generado
+        """
         #region Corrección: buscar nombre correcto de variables
         try:
             lon_name = [i for i in ds.coords if ('lon' in i)or('x' in i)][0]
@@ -371,7 +418,7 @@ class MAPEADOR:
                         response = requests.get(url, stream=True, timeout=300)
                         
                         if response.status_code == 200:
-                            for i in gb(f"{a.salida_wrf}/**.grib2"):os.remove(i)
+                            for i in gb(f"{self.salida_wrf}/**.grib2")+gb(f"{self.salida_wrf}/**.idx"):os.remove(i)
                             
                             with open(nombre_final, "wb") as f:
                                 for chunk in response.iter_content(chunk_size=64*1024):
@@ -395,19 +442,26 @@ class MAPEADOR:
             previsao_inicial=rodada,
             previsao_final=rodada+timedelta(days=6),
             path_file=self.salida_wrf+'/mapa_precipitacion_wrf.png')
-        return ds
+        return ds,rodada
 
-    def refresh_eta(self)->str:
+    def refresh_model(self,name)->tuple:
+        """
+        Funcion generalista para recargar cualquier mapa de cualquier modelo disponible
+
+        Args:
+            name (str) : Nombre del modelo deseaso
+        
+        Returns:
+            tuple: (path_imagen, datetime_rodada)
+                - path_imagen (str): Ruta al archivo PNG generado
+                - datetime_rodada (datetime): Fecha/hora de inicio del modelo
+        """
         self._Shapefiles()
-        eta,time_ini=self.eta()
-        return self.Mapa_de_pp(eta),time_ini
-    
-    def refresh_wrf(self)->str:
-        self._Shapefiles()
-        wrf=self.wrf()
-        return self.Mapa_de_pp(wrf)
-    
+        model,time_ini=self.modelos_registrados[name]()
+        return self.Mapa_de_pp(model),time_ini 
+
     def REFRESH_ALL(self)->None:
+        "cha haces aca oe sapo"
         self._Shapefiles()
         eta=self.eta()
         wrf=self.wrf()
@@ -417,5 +471,5 @@ class MAPEADOR:
 #%%
 if __name__=='__main__':
     a=MAPEADOR()
-    a.REFRESH_ALL()
+    #a.REFRESH_ALL()
 # %%

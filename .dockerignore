@@ -1,0 +1,7 @@
+
+__pycache__/
+.github
+.gitignore
+error.txt
+PRONOSTICO.py
+commands.txt
