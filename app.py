@@ -1,5 +1,5 @@
 #%%
-from flask import Flask, render_template_string
+from flask import Flask, render_template_string, Response
 from mapeado import MAPEADOR
 from comunicacion import ControlModelos,ControlRasberi,ControlCamara
 from datetime import*
@@ -22,7 +22,9 @@ HTML_TEMPLATE = open('dashboard.html', 'r', encoding='utf-8').read()
 @app.route('/')
 def pronostico()->None:
     """Ruta principal que muestra el dashboard de pronóstico del tiempo."""
-    return render_template_string(HTML_TEMPLATE)
+    # Devolver el HTML tal cual sin procesar por Jinja para evitar
+    # errores con los literales '{{' usados por React/JSX en la plantilla.
+    return Response(HTML_TEMPLATE, mimetype='text/html')
 #%%
 if __name__ == '__main__':
     print("=" * 60)
