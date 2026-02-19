@@ -136,6 +136,8 @@
       const [gfsStatus, setGfsStatus] = useState({ procesando: false, imagen_path: null });
       const [gfsImageUrl, setGfsImageUrl] = useState(null);
       const [activeTab, setActiveTab] = useState('sensores'); // 'sensores', 'eta', 'wrf' o 'gfs'
+      const [showHourlyPanel, setShowHourlyPanel] = useState(true);
+      const [showWeeklyPanel, setShowWeeklyPanel] = useState(false);
 
       // Webcam del Campus UNALM - La Molina
       const webcams = [
@@ -348,7 +350,14 @@
               windSpeed: Math.round(data.daily.windspeed_10m_max[i])
             });
           }
-          setWeeklyForecast(weekly);
+          // Rotar la semana para que empiece por LUNES dentro de la ventana de 7 días
+          const mondayIndex = weekly.findIndex(d => d.date.getDay() === 1); // 1 = Monday
+          if (mondayIndex > 0) {
+            const rotated = weekly.slice(mondayIndex).concat(weekly.slice(0, mondayIndex));
+            setWeeklyForecast(rotated);
+          } else {
+            setWeeklyForecast(weekly);
+          }
         } catch (error) {
           console.error('Error fetching forecast:', error);
         }
@@ -380,6 +389,49 @@
       const getWindDirection = (degrees) => {
         const directions = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
         return directions[Math.round(degrees / 45) % 8];
+      };
+
+      // Devuelve SVG y etiqueta para cobertura nubosa en octas (0-8)
+      const getCloudIconAndLabel = (percent) => {
+        const pct = Math.min(Math.max(Number(percent) || 0, 0), 100);
+        const octa = Math.round((pct / 100) * 8);
+
+        const labels = {
+          0: 'Despejado',
+          1: 'Poco nuboso',
+          2: 'Poco nuboso',
+          3: 'Poco nuboso',
+          4: 'Nuboso',
+          5: 'Nuboso',
+          6: 'Muy nuboso',
+          7: 'Muy nuboso',
+          8: 'Cubierto'
+        };
+
+        // Generar path de cuña para representar octas empezando desde arriba (-90deg)
+        const cx = 24, cy = 24, r = 20;
+        const startAngle = -90 * Math.PI / 180;
+        const angle = (octa / 8) * 2 * Math.PI;
+
+        let wedgePath = '';
+        if (octa > 0) {
+          const endAngle = startAngle + angle;
+          const x1 = cx + r * Math.cos(startAngle);
+          const y1 = cy + r * Math.sin(startAngle);
+          const x2 = cx + r * Math.cos(endAngle);
+          const y2 = cy + r * Math.sin(endAngle);
+          const largeArc = angle > Math.PI ? 1 : 0;
+          wedgePath = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+        }
+
+        const svg = `
+          <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="24" cy="24" r="20" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="2" />
+            ${wedgePath ? `<path d="${wedgePath}" fill="rgba(255,255,255,0.9)" />` : ''}
+          </svg>
+        `;
+
+        return { svg, label: labels[octa] || 'Despejado', octa };
       };
 
       const formatTime = (date) => {
@@ -741,12 +793,38 @@
                 </div>
               )}
 
-              {/* Pronóstico por Horas */}
-              <div className="glass-card rounded-3xl p-6 animate-fade-in">
-                <div className="flex items-center gap-3 mb-4">
-                  <Clock />
-                  <h2 className="text-2xl font-bold title-font">PRÓXIMAS 24 HORAS</h2>
+              {/* Subtítulo fijo y botones para mostrar/ocultar pronósticos */}
+              <div className="mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="text-lg text-blue-200 font-semibold uppercase">PRONÓSTICO DE :</div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setShowHourlyPanel(true); setShowWeeklyPanel(false); }}
+                      className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+                        showHourlyPanel ? 'bg-blue-600 text-white glow' : 'glass-card-dark text-gray-300 hover:bg-white/10'
+                      }`}
+                    >
+                      ⏱️ Proximas 12 horas
+                    </button>
+                    <button
+                      onClick={() => { setShowWeeklyPanel(true); setShowHourlyPanel(false); }}
+                      className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+                        showWeeklyPanel ? 'bg-cyan-600 text-white glow' : 'glass-card-dark text-gray-300 hover:bg-white/10'
+                      }`}
+                    >
+                      📅 Proximos 7 dias
+                    </button>
+                  </div>
                 </div>
+              </div>
+
+              {/* Pronóstico por Horas */}
+              {showHourlyPanel && (
+                <div className="glass-card rounded-3xl p-6 animate-fade-in">
+                <div className="flex items-center gap-3 mb-4">
+                    <Clock />
+                    <h2 className="text-2xl font-bold title-font">PRÓXIMAS 12 HORAS</h2>
+                  </div>
                 
                 <div className="overflow-x-auto">
                   <div className="flex gap-4 pb-2">
@@ -768,47 +846,35 @@
                   </div>
                 </div>
               </div>
+              )}
 
-              {/* Pronóstico Semanal */}
-              <div className="glass-card rounded-3xl p-6 animate-fade-in">
-                <div className="flex items-center gap-3 mb-4">
-                  <Calendar />
-                  <h2 className="text-2xl font-bold title-font">PRÓXIMOS 7 DÍAS</h2>
-                </div>
-                
-                <div className="space-y-3">
-                  {weeklyForecast.map((day, idx) => (
-                    <div key={idx} className="glass-card-dark rounded-xl p-4 flex items-center justify-between hover:bg-white/10 transition-all">
-                      <div className="flex items-center gap-4 flex-1">
-                        <div className="w-16 font-semibold text-blue-300">
-                          {formatDate(day.date)}
+              {/* Pronóstico Semanal - vista horizontal similar a 12H */}
+              {showWeeklyPanel && (
+                <div className="glass-card rounded-3xl p-6 animate-fade-in">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Calendar />
+                    <h2 className="text-2xl font-bold title-font">PRÓXIMOS 7 DÍAS</h2>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <div className="flex gap-4 pb-2">
+                      {weeklyForecast.map((day, idx) => (
+                        <div key={idx} className="glass-card-dark rounded-2xl p-4 min-w-[140px] text-center metric-card">
+                          <div className="text-sm font-medium text-blue-300 mb-2">{formatDate(day.date)}</div>
+                          <div className="text-4xl mb-2">{getWeatherEmoji(day.weatherCode)}</div>
+                          <div className="text-2xl font-bold mb-1">{day.maxTemp}°</div>
+                          <div className="text-sm text-gray-300">{day.minTemp}°</div>
+                          <div className="flex items-center justify-center gap-2 mt-2 text-xs text-blue-300">
+                            <Droplets />
+                            <span>{day.precipitation}%</span>
+                          </div>
+                          <div className="text-xs text-gray-400 mt-1">{day.windSpeed} km/h</div>
                         </div>
-                        <div className="text-5xl">
-                          {getWeatherEmoji(day.weatherCode)}
-                        </div>
-                        <div className="flex-1 text-sm text-gray-300">
-                          {getWeatherDescription(day.weatherCode)}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-6">
-                        <div className="flex items-center gap-2">
-                          <Droplets />
-                          <span className="text-sm">{day.precipitation}%</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Wind />
-                          <span className="text-sm">{day.windSpeed} km/h</span>
-                        </div>
-                        <div className="text-right min-w-[80px]">
-                          <span className="text-xl font-bold text-orange-400">{day.maxTemp}°</span>
-                          <span className="text-gray-400 mx-1">/</span>
-                          <span className="text-lg text-blue-300">{day.minTemp}°</span>
-                        </div>
-                      </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Panel derecho */}
@@ -836,58 +902,64 @@
                 </div>
               </div>
 
-              {/* Métricas de sensores */}
+              {/* Métricas de sensores (reducidas a las solicitadas) */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="glass-card-dark rounded-2xl p-5 metric-card">
                   <div className="flex items-center gap-2 mb-3 text-blue-400">
                     <Droplets />
                     <span className="text-xs font-semibold uppercase tracking-wide">Humedad</span>
                   </div>
-                  <div className="text-3xl font-bold">{sensorData?.humidity ?? '--'}%</div>
+                  <div className="mb-3">
+                    <div className="text-3xl font-bold">{sensorData?.humidity ?? '--'}%</div>
+                  </div>
+                  {sensorData?.humidity !== null && sensorData?.humidity !== undefined ? (
+                    <div className="w-full bg-white/5 rounded-full h-3 overflow-hidden">
+                      <div
+                        className="h-3 bg-blue-400 rounded-full"
+                        style={{ width: `${Math.min(Math.max(sensorData.humidity, 0), 100)}%` }}
+                      ></div>
+                    </div>
+                  ) : (
+                    <div className="w-full bg-white/5 rounded-full h-3"></div>
+                  )}
                 </div>
 
                 <div className="glass-card-dark rounded-2xl p-5 metric-card">
-                  <div className="flex items-center gap-2 mb-3 text-cyan-400">
-                    <Wind />
-                    <span className="text-xs font-semibold uppercase tracking-wide">Viento</span>
-                  </div>
-                  <div className="text-3xl font-bold">{sensorData?.windSpeed ?? '--'}</div>
-                  <div className="text-xs text-gray-400">km/h {sensorData?.windDirection ? getWindDirection(sensorData.windDirection) : ''}</div>
+                  {(() => {
+                    const isPrecip = sensorData?.precipitating !== undefined
+                      ? sensorData.precipitating
+                      : ((sensorData?.precipitation || 0) > 0);
+                    return (
+                      <div className="flex flex-col items-center">
+                        <div className="mb-2 text-4xl">{isPrecip ? '🌧️' : '☀️'}</div>
+                        <div className="text-xs font-semibold uppercase tracking-wide text-gray-300">Precipitación</div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="glass-card-dark rounded-2xl p-5 metric-card">
-                  <div className="flex items-center gap-2 mb-3 text-purple-400">
-                    <Gauge />
-                    <span className="text-xs font-semibold uppercase tracking-wide">Presión</span>
+                  <div className="flex items-center gap-2 mb-3 text-gray-300">
+                    <span className="text-xs font-semibold uppercase tracking-wide">Cobertura nubosa</span>
                   </div>
-                  <div className="text-3xl font-bold">{sensorData?.pressure ?? '--'}</div>
-                  <div className="text-xs text-gray-400">hPa</div>
-                </div>
-
-                <div className="glass-card-dark rounded-2xl p-5 metric-card">
-                  <div className="flex items-center gap-2 mb-3 text-orange-400">
-                    <CloudRain />
-                    <span className="text-xs font-semibold uppercase tracking-wide">Precipitación</span>
-                  </div>
-                  <div className="text-3xl font-bold">{sensorData?.precipitation ?? '--'}</div>
-                  <div className="text-xs text-gray-400">mm</div>
+                  {(() => {
+                    const cloudPct = sensorData?.cloudCover ?? (hourlyForecast[0]?.cloudcover ?? null);
+                    const { svg, label } = getCloudIconAndLabel(cloudPct);
+                    return (
+                      <div className="flex flex-col items-center">
+                        <div dangerouslySetInnerHTML={{ __html: svg }} />
+                        <div className="text-sm text-blue-300 mt-1 font-medium">{label}</div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="glass-card-dark rounded-2xl p-5 metric-card">
                   <div className="flex items-center gap-2 mb-3 text-yellow-400">
                     <Sun />
-                    <span className="text-xs font-semibold uppercase tracking-wide">Índice UV</span>
+                    <span className="text-xs font-semibold uppercase tracking-wide">Radiación UV</span>
                   </div>
                   <div className="text-3xl font-bold">{sensorData?.uvIndex ?? '--'}</div>
-                </div>
-
-                <div className="glass-card-dark rounded-2xl p-5 metric-card">
-                  <div className="flex items-center gap-2 mb-3 text-green-400">
-                    <Leaf />
-                    <span className="text-xs font-semibold uppercase tracking-wide">Calidad Aire</span>
-                  </div>
-                  <div className="text-3xl font-bold">{sensorData?.airQuality ?? '--'}</div>
-                  <div className="text-xs text-gray-400">AQI</div>
                 </div>
               </div>
 
