@@ -133,7 +133,9 @@
       const [etaImageUrl, setEtaImageUrl] = useState(null);
       const [wrfStatus, setWrfStatus] = useState({ procesando: false, imagen_path: null });
       const [wrfImageUrl, setWrfImageUrl] = useState(null);
-      const [activeTab, setActiveTab] = useState('sensores'); // 'sensores', 'eta' o 'wrf'
+      const [gfsStatus, setGfsStatus] = useState({ procesando: false, imagen_path: null });
+      const [gfsImageUrl, setGfsImageUrl] = useState(null);
+      const [activeTab, setActiveTab] = useState('sensores'); // 'sensores', 'eta', 'wrf' o 'gfs'
 
       // Webcam del Campus UNALM - La Molina
       const webcams = [
@@ -149,6 +151,7 @@
         fetchWeatherForecast();
         fetchEtaStatus();
         fetchWrfStatus();
+        fetchGfsStatus();
         // Actualizar datos de sensores cada 5 segundos
         const sensorInterval = setInterval(fetchSensorData, 5000);
         // Actualizar pronóstico cada 5 minutos
@@ -157,11 +160,14 @@
         const etaInterval = setInterval(fetchEtaStatus, 10000);
         // Actualizar estado WRF cada 10 segundos
         const wrfInterval = setInterval(fetchWrfStatus, 10000);
+        // Actualizar estado GFS cada 10 segundos
+        const gfsInterval = setInterval(fetchGfsStatus, 10000);
         return () => {
           clearInterval(sensorInterval);
           clearInterval(forecastInterval);
           clearInterval(etaInterval);
           clearInterval(wrfInterval);
+          clearInterval(gfsInterval);
         };
       }, []);
 
@@ -210,6 +216,30 @@
           setWrfStatus({ ...wrfStatus, procesando: true });
         } catch (error) {
           console.error('Error updating WRF model:', error);
+        }
+      };
+
+      // Obtener estado del modelo GFS
+      const fetchGfsStatus = async () => {
+        try {
+          const res = await fetch('/api/gfs/estado');
+          const data = await res.json();
+          setGfsStatus(data);
+          if (data.imagen_path) {
+            setGfsImageUrl(`/api/gfs/mapa?t=${Date.now()}`);
+          }
+        } catch (error) {
+          console.error('Error fetching GFS status:', error);
+        }
+      };
+
+      // Actualizar modelo GFS
+      const actualizarModeloGfs = async () => {
+        try {
+          await fetch('/api/gfs/actualizar', { method: 'POST' });
+          setGfsStatus({ ...gfsStatus, procesando: true });
+        } catch (error) {
+          console.error('Error updating GFS model:', error);
         }
       };
 
@@ -449,6 +479,16 @@
                 >
                   🌀 Modelo WRF 7km
                 </button>
+                <button 
+                  onClick={() => setActiveTab('gfs')}
+                  className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+                    activeTab === 'gfs' 
+                      ? 'bg-yellow-600 text-white glow' 
+                      : 'glass-card-dark text-gray-300 hover:bg-white/10'
+                  }`}
+                >
+                  🌐 Modelo GFS
+                </button>
               </div>
 
               {/* Contenido de Sensores */}
@@ -635,6 +675,65 @@
                           <span className="text-6xl">🌀</span>
                           <p className="mt-4">Haga clic en "Actualizar Modelo" para generar el mapa</p>
                           <p className="text-xs mt-2 text-gray-500">Primera ejecución puede tardar varios minutos (descarga ~150MB)</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Contenido del Modelo GFS */}
+              {activeTab === 'gfs' && (
+                <div className="glass-card rounded-3xl p-6 animate-fade-in">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <span>🌐</span>
+                      <h2 className="text-2xl font-bold title-font">MODELO GFS - GLOBAL</h2>
+                    </div>
+                    <button 
+                      onClick={actualizarModeloGfs}
+                      disabled={gfsStatus.procesando}
+                      className={`px-4 py-2 rounded-xl font-semibold transition-all ${
+                        gfsStatus.procesando 
+                          ? 'bg-gray-600 cursor-not-allowed' 
+                          : 'bg-yellow-600 hover:bg-yellow-700'
+                      }`}
+                    >
+                      {gfsStatus.procesando ? '⏳ Procesando...' : '🔄 Actualizar Modelo'}
+                    </button>
+                  </div>
+                  
+                  <div className="mb-4">
+                    <p className="text-sm text-yellow-200 mb-2">
+                      Datos del Modelo GFS (Global Forecast System)
+                    </p>
+                    {gfsStatus.ultima_actualizacion && (
+                      <p className="text-xs text-gray-400">
+                        Última actualización: {new Date(gfsStatus.ultima_actualizacion).toLocaleString('es-PE')}
+                      </p>
+                    )}
+                    {gfsStatus.error && (
+                      <p className="text-xs text-red-400 mt-2">
+                        Error: {gfsStatus.error}
+                      </p>
+                    )}
+                  </div>
+                  
+                  <div className="rounded-2xl overflow-hidden bg-slate-800">
+                    {gfsImageUrl ? (
+                      <img 
+                        src={gfsImageUrl}
+                        alt="Mapa GFS"
+                        className="w-full h-auto"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <div className="h-96 flex items-center justify-center text-gray-400">
+                        <div className="text-center">
+                          <span className="text-6xl">🌐</span>
+                          <p className="mt-4">Haga clic en "Actualizar Modelo" para generar el mapa GFS</p>
                         </div>
                       </div>
                     )}
