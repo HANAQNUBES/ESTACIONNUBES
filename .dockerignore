@@ -2,6 +2,9 @@
 __pycache__/
 .github
 .gitignore
+temp
+ignorar
 error.txt
 PRONOSTICO.py
 commands.txt
+readme.md

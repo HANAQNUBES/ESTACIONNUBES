@@ -3,15 +3,17 @@ from flask import Flask, render_template_string,jsonify,request,send_file
 import threading
 import os
 from datetime import datetime
-from mapeado import MAPEADOR
 from PIL import Image
+
+from forecast import MAPEADOR
+
 
 class ControlModelos:
 
-    def __init__(self,modelos=['eta','wrf']):
+    def __init__(self,modelos=['eta','wrf','gfs']):
         """
         Args:
-            mapeador: Instancia de MAPEADOR() con métodos refresh_eta(), refresh_wrf(), etc.
+            mapeador: Instancia de MAPEADOR() con metodos para refrescar modelos
         """
         self.mapeador = MAPEADOR()
         MODELOS={}

@@ -1,4 +1,4 @@
-#Usa una imagen basada en python
+# Usa una imagen basada en python
 FROM python:3.10-slim
 
 RUN apt-get update && apt-get install -y \
@@ -22,15 +22,22 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean
 
 WORKDIR /app
-COPY ./requirements.txt .
+
+# Copiar solo requirements.txt primero (mejor caching)
+COPY requirements.txt .
+
+# Instalar dependencias
 RUN python -m pip install --upgrade pip setuptools wheel
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Variable de entorno para logs sin buffer
 ENV PYTHONUNBUFFERED=1
+
+# Copiar TODO el código (incluyendo comunicacion/ y forecast/)
 COPY . .
 
+# Exponer puerto
 EXPOSE 5000
 
-#CMD ["python","app.py"]
-#probando con 1 worker, creo q es la causa de todos nuestros males
-CMD ["gunicorn","--workers","1","--bind","0.0.0.0:5000","app:app"] 
+# Ejecutar con gunicorn (1 worker es suficiente para empezar)
+CMD ["gunicorn", "--workers", "1", "--bind", "0.0.0.0:5000", "app:app"]
