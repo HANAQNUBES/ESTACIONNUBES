@@ -1,5 +1,5 @@
 # Usa una imagen basada en python
-FROM python:3.10-slim
+FROM python:3.13-slim
 
 RUN apt-get update && apt-get install -y \
     # Cartopy/mapas
@@ -41,3 +41,5 @@ EXPOSE 5000
 
 # Ejecutar con gunicorn (1 worker es suficiente para empezar)
 CMD ["gunicorn", "--workers", "1", "--bind", "0.0.0.0:5000", "app:app"]
+
+

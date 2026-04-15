@@ -1,16 +1,12 @@
 #%%
 "Librerias"
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 import os
 import urllib.request
 import zipfile
-from tqdm import tqdm
-import time
-import cfgrib
 import xarray as xr
 import numpy as np
 import pandas as pd
-import requests
 import matplotlib
 matplotlib.use('Agg')  # Backend sin GUI
 import matplotlib.pyplot as plt
@@ -23,6 +19,9 @@ from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
 from multiprocessing import Pool, cpu_count
 from functools import partial
 from PIL import Image
+
+
+
 
 cpu_count = os.cpu_count() or 1
 try:
@@ -435,23 +434,18 @@ class MAPEADOR:
         gif_final = os.path.join(FOLDER, name)
         if dibujar:
             print('Se requiere re-dibujar... ')
-            for i in gb(FOLDER+'/imgs/*'):os.remove(i)#intenta eliminar las imagenes en la respectiva carpeta, si es que existen
+            for i in gb(FOLDER+'/imgs/*'):
+                os.remove(i)#intenta eliminar las imagenes en la respectiva carpeta, si es que existen
             self._Shapefiles()#verifica y descarga shapefiles si los necesita
             ds=self.modelos_registrados[name]()#corre el modelo,este puede descargar, consolidar o reusar un archivo segun el caso
-            print('')
-            # 3. Crear wrapper que llame al método de instancia
-            plot_func = partial(self.plot_precipitation_map, folder=FOLDER)
-            # 4. Ejecutar en paralelo
-            datasets_tiempo = [ds.isel(time=i) for i in range(len(ds.time))]
-
-            with Pool(processes=MAX_WORKERS) as pool:
-
-                # Usar imap para ver progreso
-                resultados = []
-                for i, resultado in enumerate(pool.imap(plot_func, datasets_tiempo)):
-                    resultados.append(resultado)
-                    print(f"✅ Progreso: {i+1}/{len(datasets_tiempo)} mapas completados", end='\r')
-                print() 
+            print('')#espacio
+            # 4. Ejecutar 1x1 (el docker le lokea el paralelo asi que probaremos este por ahora)
+            TOTAL = len(ds.time)
+            for coutn,t_i in enumerate(ds.time):
+                ds_part = ds.sel(time=t_i)
+                self.plot_precipitation_map(ds_part,FOLDER)
+                percent = round(100*coutn/TOTAL,1)
+                print (f" Imagenes procesadas {percent}%    ")
 
             fotos=gb(FOLDER+'/imgs/**.png')
             fotos.sort() 
@@ -471,4 +465,3 @@ if __name__=='__main__':
     gif_file,fecha=mapper.refresh_model('wrf')#tratamos de actualizar eta
     print(f"gif creado exitosamente, guardado en {gif_file}")
     print(f"fecha actualizada :{fecha}")
-# %%

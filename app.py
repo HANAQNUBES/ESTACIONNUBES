@@ -1,15 +1,10 @@
 #%%
+from glob import glob as gb
+
 from flask import Flask, render_template_string, Response,send_file
 from comunicacion import ControlModelos,ControlRasberi,ControlCamara
-
-# app.py
-from comunicacion.comu import ControlRasberi, ControlCamara
-from forecast.mapeado import MAPEADOR
-from forecast.Down_and_Consolid import GFS_down, ETA_down, WRF_down
-
-
 from datetime import*
-#%%
+
 import logging
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)  # Solo muestra errores, no las peticiones GET
@@ -46,5 +41,3 @@ if __name__ == '__main__':
     print("=" * 60)
     
     app.run(debug=False, host='0.0.0.0', port=5000)
-
-# %%

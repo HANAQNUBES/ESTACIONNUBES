@@ -2,11 +2,11 @@
 
 > Proyecto para monitoreo y pronóstico del estado de la atmosfera mediante
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-green.svg)](https://python.org)
+[![Python](https://img.shields.io/badge/Python-3.13%2B-green.svg)](https://python.org)
 [![Estado](https://img.shields.io/badge/Estado-Activo-brightgreen.svg)]()
 [![Licencia](https://img.shields.io/badge/Licencia-MIT-blue.svg)](LICENSE)
 ---
-## 📋 Tabla de Contenidos
+## Tabla de Contenidos
 
 - <a href="#seccion1">Descripción General</a>
 - <a href="#seccion2">Tecnologías</a>
@@ -37,7 +37,7 @@ Para centralizar el monitoreo climático en un solo sistema, facilitando la toma
 ---
 
 
-<h2 id="seccion2">🚀 Tecnologías</h2>
+<h2 id="seccion2"> Tecnologías</h2>
 
 | Categoría | Tecnologías |
 |-----------|-------------|
@@ -52,7 +52,7 @@ Para centralizar el monitoreo climático en un solo sistema, facilitando la toma
 
 ---
 
-<h2 id="seccion3">🚀 Estructura del Proyecto</h2>
+<h2 id="seccion3"> Estructura del Proyecto</h2>
 
 ```bash
 proyecto/

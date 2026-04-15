@@ -19,8 +19,8 @@ __pycache__/
 .env
 .venv
 
+ignorar
 commands.txt
 temp
-ignorar
 PRONOSTICO.py
 >>>>>>> 722e0a753218e2ed740779204ae3bad4928a7367

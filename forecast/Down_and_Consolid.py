@@ -109,13 +109,13 @@ class GeneralDownloader:
         if self._verify_download(file_path):return True
         # Descargar usando la sesión compartida
         try:
-            with session.get(url, stream=True, timeout=(10, 60)) as r:
+            with session.get(url, stream=True, timeout=(10, 300)) as r:
                 if r.status_code != 200:
                     print(r.status_code)
                     return False
                 tmp_path = file_path + ".part"
                 with open(tmp_path, "wb") as f:
-                    for chunk in r.iter_content(chunk_size=1024 * 256):
+                    for chunk in r.iter_content(chunk_size=1024 * 128):
                         if chunk:f.write(chunk)
                 os.replace(tmp_path, file_path)
                 # Verificacion final
@@ -129,7 +129,7 @@ class GeneralDownloader:
         try:return xr.open_dataset(file,engine='cfgrib',backend_kwargs=filtros).drop('step')
         except:return xr.open_dataset(file,engine='cfgrib',backend_kwargs=filtros) 
 
-    def download(self,MAX_WORKERS=60,MAX_RETRIES=10):
+    def download(self,MAX_WORKERS=60,MAX_RETRIES=20):
         """
         Descarga completa paralelizada de todas las horas solicitadas
 
@@ -202,8 +202,7 @@ class GeneralDownloader:
                     
                     mbps = ((fin - inic) * 8) / ((t1-t0) * 1_000_000)
 
-                    print(f"completas: {len(completadas)}|pendientes: {len(pendientes)}|fallidos: {len(fallidas)}|Internet speed :{mbps:.2f}         ", end='\r')
-            session.close()
+                    print(f"completas: {len(completadas)}|pendientes: {len(pendientes)}|fallidos: {len(fallidas)}|Internet speed :{mbps:.2f}         ")
             print(f"\n=== RESUMEN DE DESCARGA ===")
             print(f"Descargas exitosas: {len(completadas)}/{len(completadas)+len(fallidas)}")
             if fallidas:print(f"Se requiere redescargar estas horas:{fallidas}")
@@ -213,10 +212,8 @@ class GeneralDownloader:
             print('Parece que no es necesario re-descargar...')
             time.sleep(3)
 
-    def consolid(self,filtros,name,MAX_WORKERS= max(cpu_count-1,1)):
-        """Consolidación genérica, posible re-imlementacion en clases hija"""
+    def consolid(self, filtros, name):
         final_file_name=self.carpeta+'/Consolidados/'+f'{name}.nc'
-        
         if os.path.exists(final_file_name):
             print('\n=== Archivo consolidado existente ===')
             return xr.open_dataset(final_file_name)
@@ -224,12 +221,16 @@ class GeneralDownloader:
         files=[i for i in gb(self.carpeta+'/*')[:] if not('.idx' in i) and ('.grib2' in i)]
         files.sort()
         files=files[1:]
-
         print(f'\n=== Se Consolidarán {len(files)} archivos === ')
-        with Pool(processes=MAX_WORKERS) as pool:
-            N = pool.map(partial(self._open_GRIB, filtros=filtros), files)
-            consolid=xr.concat(N,dim='time')# override (??)
 
+        consolid = xr.open_mfdataset(
+            files,
+            engine='cfgrib',
+            backend_kwargs=filtros,
+            concat_dim='time',
+            combine='nested',
+            parallel=True
+        )
         
         consolid['time']=consolid['valid_time']
         consolid=consolid.drop('valid_time')##
@@ -395,10 +396,15 @@ class GFS_down(GeneralDownloader):
         files.sort()
         files=files[1:]
         print(f'\n=== Se Consolidarán {len(files)} archivos === ')
-        with Pool(processes=MAX_WORKERS) as pool:
-            N = pool.map(partial(self._open_GRIB, filtros=filtros), files)
-            consolid=xr.concat(N,dim='time')# override (??)
-
+        
+        consolid = xr.open_mfdataset(
+            files,
+            engine='cfgrib',
+            backend_kwargs=filtros,
+            concat_dim='time',
+            combine='nested',
+            parallel=True
+        )
         
         consolid['time']=consolid['valid_time']
         consolid=consolid.drop('valid_time')##
