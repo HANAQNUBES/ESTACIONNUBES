@@ -12,7 +12,6 @@ from requests.adapters import HTTPAdapter
 import time
 import concurrent.futures
 import warnings
-from multiprocessing import Pool# True Multicore
 import psutil
 from pathlib import Path
 warnings.filterwarnings("ignore")
@@ -20,7 +19,7 @@ warnings.filterwarnings("ignore")
 cpu_count = os.cpu_count() or 1
 #%%
 
-t_ini=datetime.now().replace(tzinfo=None).replace(hour=0, minute=0, second=0, microsecond=0)
+t_ini=datetime.now(UTC).replace(tzinfo=None).replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 def build_wrf_url_and_filename(hora):
@@ -44,7 +43,7 @@ A=build_wrf_url_and_filename(9)
 # %%
 class GeneralDownloader:
 
-    def __init__(self,carpeta:str,hours=np.arange(0,14*24,3),fecha=datetime.today())->None:
+    def __init__(self,carpeta:str,hours=np.arange(0,14*24,3),fecha=datetime.now(UTC).replace(tzinfo=None))->None:
 
         self.carpeta=carpeta
         self.fecha=fecha.strftime('%Y%m%d')
@@ -95,35 +94,41 @@ class GeneralDownloader:
                 pass
         return False
 
-    def _single_download(self,session,hour):
-        """
-        descarga individual,
-        se le pasa una sesion abierta y una hora
-        """
-        
-        carpeta=self.carpeta
-
+    def _single_download(self, session, hour, max_retries=10):
+        carpeta = self.carpeta
         url, file_name = self._build_links_and_filename(hour)
         file_path = os.path.join(carpeta, file_name)
-        # Verificar si ya existe
-        if self._verify_download(file_path):return True
-        # Descargar usando la sesión compartida
-        try:
-            with session.get(url, stream=True, timeout=(10, 300)) as r:
-                if r.status_code != 200:
-                    print(r.status_code)
-                    return False
-                tmp_path = file_path + ".part"
-                with open(tmp_path, "wb") as f:
-                    for chunk in r.iter_content(chunk_size=1024 * 128):
-                        if chunk:f.write(chunk)
-                os.replace(tmp_path, file_path)
-                # Verificacion final
-                return self._verify_download(file_path)
-                
-        except Exception as e:
-            print(e)#debuggear, esto rompera la barrita de carga, pero supongo que es parte de la gracia
-            return False
+
+        # Ya existe y es válido?
+        if self._verify_download(file_path):
+            return True
+
+        for attempt in range(max_retries):
+            
+            try:
+                with session.get(url, stream=True, timeout=(10, 300)) as r:
+                    if r.status_code == 200:
+                        tmp_path = file_path + ".part"
+                        with open(tmp_path, "wb") as f:
+                            for chunk in r.iter_content(chunk_size=1024 * 128):
+                                if chunk:
+                                    f.write(chunk)
+                        os.replace(tmp_path, file_path)
+                        return self._verify_download(file_path)
+                    else:
+                        # Si no es 200, espera antes de reintentar
+                        wait = (2 ** attempt )/200 # backoff exponencial: 1,2,4,8,... segundos
+                        time.sleep(wait)
+                        continue
+            except Exception as e:
+                print(f"Error en {file_name}: {e}")
+                wait = 2 ** attempt
+                time.sleep(wait)
+                continue
+
+        # Si se acabaron los reintentos
+        print(f"No se pudo descargar {file_name} después de {max_retries} intentos")
+        return False
 
     def _open_GRIB(self,file,filtros):
         try:return xr.open_dataset(file,engine='cfgrib',backend_kwargs=filtros).drop('step')
@@ -244,7 +249,7 @@ class GeneralDownloader:
 # %%
 class GFS_down(GeneralDownloader):
     def __init__(self, carpeta, hours=np.arange(0, 7 * 24, 3),extent=(-85, -23, -67, 1),
-                 resolution = '25',hour_run = '00',fecha=datetime.today()):
+                 resolution = '25',hour_run = '00',fecha=datetime.now(UTC).replace(tzinfo=None)):
         super().__init__(carpeta, hours, fecha)
         self.resolution = resolution
         self.hour_run = hour_run
@@ -417,7 +422,7 @@ class GFS_down(GeneralDownloader):
         return consolid
 
 class ETA_down(GeneralDownloader):
-    def __init__(self, carpeta, hours=np.arange(0, 7 * 24, 1), fecha=datetime.today()):
+    def __init__(self, carpeta, hours=np.arange(0, 7 * 24, 1), fecha=datetime.now(UTC).replace(tzinfo=None)-timedelta(days=1)):
         super().__init__(carpeta, hours, fecha)
     def _build_links_and_filename(self,hora):
         """
@@ -435,7 +440,7 @@ class ETA_down(GeneralDownloader):
         return url,file_name
 
 class WRF_down(GeneralDownloader):
-    def __init__(self, carpeta, hours=np.arange(0, 7*24, 1), fecha=datetime.today()):
+    def __init__(self, carpeta, hours=np.arange(0, 7*24, 1), fecha=(datetime.now(UTC).replace(tzinfo=None)-timedelta(days=1))):
         super().__init__(carpeta, hours, fecha)
         # Nota: WRF siempre usa corrida 00 UTC (similar al patrón observado)
     
