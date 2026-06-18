@@ -100,7 +100,7 @@
 <body>
   <div id="root"></div>
 
-  <script type="text/babel">
+  <script id="dashboard-source" type="text/plain">
     const { useState, useEffect } = React;
 
     // Iconos lucide simplificados como componentes
@@ -994,6 +994,38 @@
     };
 
     ReactDOM.render(<WeatherDashboard />, document.getElementById('root'));
+  </script>
+
+  <script>
+    (function () {
+      const rootElement = document.getElementById('root');
+      if (!rootElement) {
+        console.error('No se encontró el elemento #root');
+        return;
+      }
+
+      try {
+        const source = document.getElementById('dashboard-source').textContent;
+        const transformed = Babel.transform(source, {
+          presets: [['react', { runtime: 'classic' }]],
+          babelrc: false,
+          configFile: false
+        });
+
+        const run = new Function('React', 'ReactDOM', transformed.code);
+        run(React, ReactDOM);
+      } catch (error) {
+        console.error('Error al ejecutar el dashboard:', error);
+        rootElement.innerHTML = `
+          <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f172a;color:#fff;font-family:Arial,sans-serif;padding:24px;">
+            <div style="max-width:520px;text-align:center;">
+              <h2 style="font-size:24px;margin-bottom:12px;">No se pudo cargar el dashboard</h2>
+              <p style="color:#cbd5e1;">${error.message}</p>
+            </div>
+          </div>
+        `;
+      }
+    })();
   </script>
 </body>
 </html>
